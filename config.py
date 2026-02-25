@@ -20,13 +20,14 @@ class Settings(BaseSettings):
     chatwoot_user_access_token: str = ""  # Super admin token
 
     # LLM — defaults to local Qwen3-32B (OpenAI-compatible)
-    openai_api_key: str = "sk-local"
-    openai_base_url: str = "http://192.168.0.99:8011/v1"
-    openai_model: str = "qwen3-32b"
+    # Named HARBOR_LLM_* to avoid conflict with real OPENAI_API_KEY in Infisical
+    harbor_llm_api_key: str = "sk-local"
+    harbor_llm_base_url: str = "http://192.168.0.99:8011/v1"
+    harbor_llm_model: str = "qwen3-32b"
 
     # Fallback — GPT-4o (Pro tier clients)
-    openai_fallback_api_key: str = ""
-    openai_fallback_model: str = "gpt-4o"
+    harbor_llm_fallback_api_key: str = ""
+    harbor_llm_fallback_model: str = "gpt-4o"
 
     # Database
     database_url: str = "sqlite:///./harbor.db"

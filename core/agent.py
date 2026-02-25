@@ -29,17 +29,17 @@ def build_agent(persona: PersonaConfig) -> StateGraph:
     settings = get_settings()
 
     # Use GPT-4o for Pro+ clients, local Qwen3-32B for everyone else
-    if persona.tier in ("pro", "agency") and settings.openai_fallback_api_key:
+    if persona.tier in ("pro", "agency") and settings.harbor_llm_fallback_api_key:
         llm = ChatOpenAI(
-            model=settings.openai_fallback_model,
-            api_key=settings.openai_fallback_api_key,
+            model=settings.harbor_llm_fallback_model,
+            api_key=settings.harbor_llm_fallback_api_key,
             temperature=0.7,
         )
     else:
         llm = ChatOpenAI(
-            model=settings.openai_model,
-            api_key=settings.openai_api_key,
-            base_url=settings.openai_base_url,
+            model=settings.harbor_llm_model,
+            api_key=settings.harbor_llm_api_key,
+            base_url=settings.harbor_llm_base_url,
             temperature=0.7,
         )
 
