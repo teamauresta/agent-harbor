@@ -1,0 +1,84 @@
+"""
+Harbor — Client config loader.
+Each client has a persona YAML in personas/examples/<client_id>.yaml
+"""
+import os
+import yaml
+from functools import lru_cache
+from pathlib import Path
+from pydantic import BaseModel
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    # Harbor service
+    harbor_secret: str = "dev-secret"
+    port: int = 8000
+
+    # Chatwoot connection
+    chatwoot_base_url: str = "http://192.168.0.99:30095"
+    chatwoot_user_access_token: str = ""  # Super admin token
+
+    # LLM — defaults to local Qwen3-32B (OpenAI-compatible)
+    openai_api_key: str = "sk-local"
+    openai_base_url: str = "http://192.168.0.99:8011/v1"
+    openai_model: str = "qwen3-32b"
+
+    # Fallback — GPT-4o (Pro tier clients)
+    openai_fallback_api_key: str = ""
+    openai_fallback_model: str = "gpt-4o"
+
+    # Database
+    database_url: str = "sqlite:///./harbor.db"
+
+    # Redis
+    redis_url: str = "redis://localhost:6379/5"
+
+    # Sentry (optional)
+    sentry_dsn: str = ""
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+
+
+class PersonaConfig(BaseModel):
+    """Per-client persona configuration."""
+    client_id: str
+    name: str                        # The agent's name (e.g. "Max", "Smokey")
+    business_name: str
+    business_type: str               # dental, retail, construction, etc.
+    system_prompt: str
+    greeting: str                    # First proactive message
+    escalation_prompt: str           # What to say when handing off to human
+    escalation_triggers: list[str]   # Keywords/phrases that trigger escalation
+    tools: list[str]                 # Which integrations to load: shopify, cliniko, etc.
+    tier: str = "starter"            # starter, growth, pro, agency
+    language: str = "en"
+    chatwoot_account_id: int = 1
+    chatwoot_inbox_id: int = 1
+    # Growth+ only
+    human_escalation: bool = False
+    chatwoot_escalation_agent_id: int | None = None
+    # Pro+ only
+    proactive_triggers: bool = False
+    multi_channel: bool = False
+
+
+PERSONAS_DIR = Path(__file__).parent / "personas" / "examples"
+
+
+@lru_cache
+def load_persona(client_id: str) -> PersonaConfig:
+    """Load a client's persona config from YAML."""
+    config_path = PERSONAS_DIR / f"{client_id}.yaml"
+    if not config_path.exists():
+        raise ValueError(f"No persona config found for client_id: {client_id}")
+    with open(config_path) as f:
+        data = yaml.safe_load(f)
+    return PersonaConfig(**data)
