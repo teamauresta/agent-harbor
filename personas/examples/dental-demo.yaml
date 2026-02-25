@@ -11,6 +11,7 @@ language: en
 
 chatwoot_account_id: 1
 chatwoot_inbox_id: 1
+bot_token_env: HARBOR_BOT_TOKEN_DENTAL_DEMO   # Chatwoot agent bot — messages appear as "Max"
 
 # Growth tier — human escalation enabled
 human_escalation: true

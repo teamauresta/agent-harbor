@@ -11,12 +11,19 @@ log = structlog.get_logger()
 
 
 class ChatwootClient:
-    def __init__(self, account_id: int):
+    def __init__(self, account_id: int, bot_token: str = ""):
         settings = get_settings()
         self.base_url = settings.chatwoot_base_url
         self.account_id = account_id
+        self._admin_token = settings.chatwoot_user_access_token
+        self._bot_token = bot_token  # Used for outgoing messages — appears as the named bot
         self.headers = {
-            "api_access_token": settings.chatwoot_user_access_token,
+            "api_access_token": self._admin_token,
+            "Content-Type": "application/json",
+        }
+        # Headers used for sending bot messages (shows as persona name, not admin)
+        self._bot_headers = {
+            "api_access_token": self._bot_token or self._admin_token,
             "Content-Type": "application/json",
         }
 
@@ -30,11 +37,16 @@ class ChatwootClient:
         message_type: str = "outgoing",
         private: bool = False,
     ) -> dict:
-        """Send a message to a conversation."""
+        """Send a message to a conversation.
+        Uses the bot token if configured — message appears as the persona's name.
+        Falls back to admin token if no bot token is set.
+        """
+        # Private notes always use admin token (bot can't post private notes)
+        headers = self.headers if private else self._bot_headers
         async with httpx.AsyncClient() as client:
             resp = await client.post(
                 self._url(f"conversations/{conversation_id}/messages"),
-                headers=self.headers,
+                headers=headers,
                 json={
                     "content": message,
                     "message_type": message_type,

@@ -63,12 +63,24 @@ class PersonaConfig(BaseModel):
     language: str = "en"
     chatwoot_account_id: int = 1
     chatwoot_inbox_id: int = 1
+    # Bot identity — Chatwoot agent bot token for this persona
+    # Store in Infisical as e.g. HARBOR_BOT_TOKEN_DENTAL_DEMO
+    # Messages will appear from the named bot (e.g. "Max") not the admin account
+    bot_token_env: str = ""          # env var name that holds the bot token
     # Growth+ only
     human_escalation: bool = False
     chatwoot_escalation_agent_id: int | None = None
     # Pro+ only
     proactive_triggers: bool = False
     multi_channel: bool = False
+
+    @property
+    def bot_token(self) -> str:
+        """Look up the bot token from env at runtime."""
+        if not self.bot_token_env:
+            return ""
+        import os
+        return os.environ.get(self.bot_token_env, "")
 
 
 PERSONAS_DIR = Path(__file__).parent / "personas" / "examples"

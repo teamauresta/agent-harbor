@@ -52,14 +52,14 @@ async def chatwoot_webhook(
     if event_type != "message_created":
         return {"status": "ignored", "reason": "not a message event"}
 
-    message = payload.get("message", {})
-
-    # Chatwoot message_type: 0 = incoming (visitor), 1 = outgoing (agent/bot), 2 = activity
-    if message.get("message_type") != 0:
+    # Chatwoot sends message_created with fields at the TOP level of the payload
+    # (not nested under a "message" key)
+    # message_type: 0 = incoming (visitor), 1 = outgoing (agent/bot), 2 = activity
+    if payload.get("message_type") != 0:
         return {"status": "ignored", "reason": "not an incoming visitor message"}
 
     # Ignore empty messages
-    content = message.get("content", "").strip()
+    content = payload.get("content", "").strip()
     if not content:
         return {"status": "ignored", "reason": "empty message"}
 
@@ -67,7 +67,7 @@ async def chatwoot_webhook(
     conversation = payload.get("conversation", {})
     conversation_id = conversation.get("id")
     account_id = payload.get("account", {}).get("id")
-    contact = payload.get("contact", {})
+    contact = payload.get("contact", payload.get("sender", {}))
 
     if not conversation_id or not account_id:
         raise HTTPException(status_code=400, detail="Missing conversation or account id")
@@ -95,7 +95,7 @@ async def send_greeting(client_id: str, account_id: int, conversation_id: int):
         persona = load_persona(client_id)
     except ValueError:
         return
-    chatwoot = ChatwootClient(account_id=account_id)
+    chatwoot = ChatwootClient(account_id=account_id, bot_token=persona.bot_token)
     await chatwoot.send_message(conversation_id, persona.greeting)
     log.info("harbor.greeting_sent", client_id=client_id, conversation_id=conversation_id)
 
@@ -121,7 +121,7 @@ async def process_message(
         log.error("harbor.unknown_client", client_id=client_id, error=str(e))
         return
 
-    chatwoot = ChatwootClient(account_id=account_id)
+    chatwoot = ChatwootClient(account_id=account_id, bot_token=persona.bot_token)
     contact_name = contact.get("name", "")
 
     # Fetch conversation history for context
