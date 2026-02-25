@@ -61,8 +61,12 @@ def build_agent(persona: PersonaConfig) -> StateGraph:
 
     def responder(state: AgentState) -> AgentState:
         """Call LLM and generate response."""
+        import re
         system = SystemMessage(content=persona.system_prompt)
         response = llm.invoke([system] + state["messages"])
+        content = response.content
+        # Strip <think>...</think> blocks (Qwen3 chain-of-thought)
+        content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
         log.info(
             "harbor.response_generated",
             client_id=persona.client_id,
@@ -70,7 +74,7 @@ def build_agent(persona: PersonaConfig) -> StateGraph:
             if hasattr(response, "usage_metadata")
             else 0,
         )
-        return {**state, "response": response.content}
+        return {**state, "response": content}
 
     def escalator(state: AgentState) -> AgentState:
         """Build escalation handoff message."""

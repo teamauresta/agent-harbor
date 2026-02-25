@@ -95,7 +95,9 @@ class ChatwootClient:
             )
             resp.raise_for_status()
             data = resp.json()
-            return data.get("payload", {}).get("messages", [])
+            payload = data.get("payload", [])
+            # Chatwoot returns payload as a list directly (not nested under 'messages')
+            return payload if isinstance(payload, list) else payload.get("messages", [])
 
     async def get_contact(self, contact_id: int) -> dict:
         """Fetch contact details."""

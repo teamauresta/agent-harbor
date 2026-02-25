@@ -32,7 +32,7 @@ async def chatwoot_webhook(
     payload = await request.json()
 
     event_type = payload.get("event")
-    log.debug("harbor.webhook_received", client_id=client_id, event=event_type)
+    log.debug("harbor.webhook_received", client_id=client_id, evt=event_type)
 
     # Only care about new incoming messages
     if event_type != "message_created":
