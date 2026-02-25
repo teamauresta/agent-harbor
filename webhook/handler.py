@@ -34,6 +34,20 @@ async def chatwoot_webhook(
     event_type = payload.get("event")
     log.debug("harbor.webhook_received", client_id=client_id, evt=event_type)
 
+    # Handle new conversations — send Harbor's proactive greeting
+    if event_type == "conversation_created":
+        conversation = payload.get("conversation", {})
+        conversation_id = conversation.get("id")
+        account_id = payload.get("account", {}).get("id")
+        if conversation_id and account_id:
+            background_tasks.add_task(
+                send_greeting,
+                client_id=client_id,
+                account_id=account_id,
+                conversation_id=conversation_id,
+            )
+        return {"status": "greeting_queued"}
+
     # Only care about new incoming messages
     if event_type != "message_created":
         return {"status": "ignored", "reason": "not a message event"}
@@ -69,6 +83,21 @@ async def chatwoot_webhook(
     )
 
     return {"status": "queued"}
+
+
+# ---------------------------------------------------------------------------
+# Greeting — sent when a new conversation is created
+# ---------------------------------------------------------------------------
+
+async def send_greeting(client_id: str, account_id: int, conversation_id: int):
+    """Send Max's persona greeting when a visitor starts a new conversation."""
+    try:
+        persona = load_persona(client_id)
+    except ValueError:
+        return
+    chatwoot = ChatwootClient(account_id=account_id)
+    await chatwoot.send_message(conversation_id, persona.greeting)
+    log.info("harbor.greeting_sent", client_id=client_id, conversation_id=conversation_id)
 
 
 # ---------------------------------------------------------------------------
