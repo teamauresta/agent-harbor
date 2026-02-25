@@ -32,7 +32,8 @@ async def chatwoot_webhook(
     payload = await request.json()
 
     event_type = payload.get("event")
-    log.debug("harbor.webhook_received", client_id=client_id, evt=event_type)
+    log.debug("harbor.webhook_received", client_id=client_id, evt=event_type,
+              msg_type=payload.get("message_type") if event_type == "message_created" else None)
 
     # Handle new conversations — send Harbor's proactive greeting
     if event_type == "conversation_created":
@@ -53,10 +54,11 @@ async def chatwoot_webhook(
         return {"status": "ignored", "reason": "not a message event"}
 
     # Chatwoot sends message_created with fields at the TOP level of the payload
-    # (not nested under a "message" key)
-    # message_type: 0 = incoming (visitor), 1 = outgoing (agent/bot), 2 = activity
-    if payload.get("message_type") != 0:
-        return {"status": "ignored", "reason": "not an incoming visitor message"}
+    # message_type can be int (0=incoming) or string ("incoming") depending on version
+    msg_type = payload.get("message_type")
+    is_incoming = msg_type == 0 or msg_type == "incoming"
+    if not is_incoming:
+        return {"status": "ignored", "reason": f"not an incoming visitor message (type={msg_type})"}
 
     # Ignore empty messages
     content = payload.get("content", "").strip()
