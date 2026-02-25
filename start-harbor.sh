@@ -8,9 +8,9 @@ set -e
 HARBOR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AUTH_FILE="$HOME/.config/infisical/agent-auth.json"
 PROJECT_ID="628dc743-e40f-4267-82ec-78841aae7b6b"
-INFISICAL_URL="http://localhost:8280"
+INFISICAL_URL="https://infisical.sotastack.com.au"
 ENV="dev"
-PORT="${PORT:-8000}"
+PORT="${PORT:-8025}"
 
 echo "[harbor] Fetching secrets from Infisical..."
 
