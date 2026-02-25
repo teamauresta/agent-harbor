@@ -107,10 +107,10 @@ def history_to_messages(
         content = msg.get("content", "")
         if not content:
             continue
-        # message_type: 1 = incoming (visitor), 2 = outgoing (agent/bot)
-        msg_type = msg.get("message_type", 1)
-        if msg_type == 1:
+        # Chatwoot message_type: 0 = incoming (visitor), 1 = outgoing (agent/bot)
+        msg_type = msg.get("message_type", 0)
+        if msg_type == 0:
             result.append(HumanMessage(content=content))
-        elif msg_type == 2 and not msg.get("private"):
+        elif msg_type == 1 and not msg.get("private"):
             result.append(AIMessage(content=content))
     return result

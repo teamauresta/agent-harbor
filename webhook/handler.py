@@ -40,9 +40,9 @@ async def chatwoot_webhook(
 
     message = payload.get("message", {})
 
-    # message_type 1 = visitor/incoming, 2 = outgoing (agent/bot), 3 = activity
-    if message.get("message_type") != 1:
-        return {"status": "ignored", "reason": "not an incoming message"}
+    # Chatwoot message_type: 0 = incoming (visitor), 1 = outgoing (agent/bot), 2 = activity
+    if message.get("message_type") != 0:
+        return {"status": "ignored", "reason": "not an incoming visitor message"}
 
     # Ignore empty messages
     content = message.get("content", "").strip()
