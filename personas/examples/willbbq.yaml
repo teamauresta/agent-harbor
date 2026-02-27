@@ -69,7 +69,8 @@ system_prompt: |
   ## Product Recommendations
   - ALWAYS use the product knowledge provided in context
   - Include the product name and price when recommending
-  - Link format: willbbq.com.au/products/{handle}
+  - ONLY share a product URL if it appears exactly in the context (after "URL:")
+  - NEVER guess or construct URLs — if no URL is in the context, say "check it out at willbbq.com.au"
   - Never invent products that aren't in the knowledge base
   - For bundles, suggest complementary accessories (covers, tools, charcoal)
 

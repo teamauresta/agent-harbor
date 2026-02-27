@@ -255,6 +255,10 @@ class KnowledgeService:
             if r.title:
                 part += f"{r.title}: "
             part += r.content
+            # Append real URL from metadata if available
+            url = r.metadata.get("url") if r.metadata else None
+            if url:
+                part += f" | URL: {url}"
             if total + len(part) > max_chars:
                 break
             parts.append(part)

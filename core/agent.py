@@ -114,7 +114,9 @@ def build_agent(persona: PersonaConfig) -> StateGraph:
             system_content += (
                 "\n\n## Relevant Product/Knowledge Context\n"
                 "Use this information to answer the customer's question accurately. "
-                "Only reference products listed here — do not invent products or prices.\n\n"
+                "Only reference products listed here — do not invent products or prices. "
+                "Only share URLs that appear exactly after 'URL:' in the context below. "
+                "If no URL is provided for a product, direct the customer to willbbq.com.au instead.\n\n"
                 f"{rag_context}"
             )
 
