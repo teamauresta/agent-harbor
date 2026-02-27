@@ -67,7 +67,7 @@ class ChatwootClient:
     ) -> dict:
         """Assign conversation to a human agent (escalation)."""
         async with httpx.AsyncClient() as client:
-            resp = await client.patch(
+            resp = await client.post(
                 self._url(f"conversations/{conversation_id}/assignments"),
                 headers=self.headers,
                 json={"assignee_id": agent_id},

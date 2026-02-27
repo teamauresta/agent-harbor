@@ -110,8 +110,18 @@ async def chatwoot_webhook(
     if not content:
         return {"status": "ignored", "reason": "empty message"}
 
-    # Extract conversation context
+    # Skip if conversation is already assigned to a human agent
+    # (Smokey should stop responding once a human takes over)
     conversation = payload.get("conversation", {})
+    assignee = conversation.get("assignee")
+    if assignee and assignee.get("type") != "agent_bot":
+        log.info("harbor.skipped_human_assigned",
+                 client_id=resolved_id,
+                 assignee=assignee.get("name"),
+                 conversation_id=conversation.get("id"))
+        return {"status": "ignored", "reason": "conversation assigned to human agent"}
+
+    # Extract conversation context (conversation already parsed above)
     conversation_id = conversation.get("id")
     account_id = payload.get("account", {}).get("id")
     contact = payload.get("contact", payload.get("sender", {}))

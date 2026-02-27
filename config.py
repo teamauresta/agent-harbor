@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     harbor_llm_fallback_model: str = "gpt-4o"
 
     # Database — pgvector-enabled Postgres for RAG knowledge base
-    database_url: str = "postgresql://sotastack:sotastack-local-2026@localhost:5432/harbor"
+    database_url: str = "postgresql://sotastack:sotastack-local-2026@10.43.163.110:5432/harbor"
 
     # Redis
     redis_url: str = "redis://localhost:6379/5"
