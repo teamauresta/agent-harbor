@@ -10,7 +10,9 @@ import asyncio
 import structlog
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 
-from config import load_persona, get_all_personas, get_persona_inbox_ids
+import httpx
+
+from config import load_persona, get_all_personas, get_persona_inbox_ids, get_settings
 from core.agent import AgentState, build_agent, history_to_messages
 from integrations.chatwoot import ChatwootClient
 
@@ -54,6 +56,59 @@ def resolve_client_id(client_id: str, payload: dict) -> str:
         if mapped:
             return mapped
     return client_id
+
+
+# ---------------------------------------------------------------------------
+# Human assignment check
+# ---------------------------------------------------------------------------
+
+async def _is_human_assigned(payload: dict, conversation: dict, client_id: str) -> bool:
+    """
+    Check if a conversation is assigned to a human agent.
+    First checks the webhook payload, then falls back to Chatwoot API.
+    """
+    # Check webhook payload — assignee might be nested in conversation or at top level
+    for source in [
+        conversation.get("assignee"),
+        conversation.get("meta", {}).get("assignee"),
+        payload.get("assignee"),
+    ]:
+        if source and source.get("id"):
+            log.info("harbor.skipped_human_assigned",
+                     client_id=client_id,
+                     assignee=source.get("name"),
+                     conversation_id=conversation.get("id"),
+                     source="payload")
+            return True
+
+    # Payload didn't have assignee — check Chatwoot API directly
+    conv_id = conversation.get("id")
+    account_id = payload.get("account", {}).get("id", 1)
+    if not conv_id:
+        return False
+
+    try:
+        settings = get_settings()
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{settings.chatwoot_base_url}/api/v1/accounts/{account_id}/conversations/{conv_id}",
+                headers={"api_access_token": settings.chatwoot_user_access_token},
+                timeout=5,
+            )
+            if resp.status_code == 200:
+                conv_data = resp.json()
+                assignee = conv_data.get("meta", {}).get("assignee")
+                if assignee and assignee.get("id"):
+                    log.info("harbor.skipped_human_assigned",
+                             client_id=client_id,
+                             assignee=assignee.get("name"),
+                             conversation_id=conv_id,
+                             source="api")
+                    return True
+    except Exception as e:
+        log.warning("harbor.assignee_check_failed", error=str(e))
+
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -113,12 +168,7 @@ async def chatwoot_webhook(
     # Skip if conversation is already assigned to a human agent
     # (Smokey should stop responding once a human takes over)
     conversation = payload.get("conversation", {})
-    assignee = conversation.get("assignee")
-    if assignee and assignee.get("type") != "agent_bot":
-        log.info("harbor.skipped_human_assigned",
-                 client_id=resolved_id,
-                 assignee=assignee.get("name"),
-                 conversation_id=conversation.get("id"))
+    if await _is_human_assigned(payload, conversation, resolved_id):
         return {"status": "ignored", "reason": "conversation assigned to human agent"}
 
     # Extract conversation context (conversation already parsed above)
