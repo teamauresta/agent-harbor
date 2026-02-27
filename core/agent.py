@@ -135,10 +135,25 @@ def build_agent(persona: PersonaConfig) -> StateGraph:
         )
         return {**state, "response": content}
 
-    def escalator(state: AgentState) -> AgentState:
-        """Build escalation handoff message."""
-        msg = build_escalation_message(persona, state.get("contact_name", ""))
-        return {**state, "response": msg}
+    async def escalator(state: AgentState) -> AgentState:
+        """Let the LLM generate an empathetic escalation response."""
+        # Give the LLM context about what's happening so it responds naturally
+        escalation_system = persona.system_prompt + (
+            "\n\n## ESCALATION MODE\n"
+            "The customer needs help from a human — they may be upset, have a complaint, "
+            "or need something you can't handle (refund, damaged item, warranty claim, etc.).\n"
+            "Respond with EMPATHY first. Acknowledge their situation. Then let them know "
+            "you're connecting them with a team member who can help.\n"
+            "Keep it to 1-2 sentences. Be genuine, not robotic.\n"
+            "Examples:\n"
+            '- "Oh no, sorry to hear about that! Let me get someone from the team who can sort this out for you right away."\n'
+            '- "That\'s not on — I\'ll connect you with the team now so they can make it right."\n'
+            '- "Absolutely, let me get one of the crew on this for you straight away."'
+        )
+        system = SystemMessage(content=escalation_system)
+        response = llm.invoke([system] + state["messages"])
+        content = re.sub(r"<think>.*?</think>", "", response.content, flags=re.DOTALL).strip()
+        return {**state, "response": content}
 
     def route_after_router(state: AgentState) -> str:
         return "escalator" if state.get("escalate") else "retriever"

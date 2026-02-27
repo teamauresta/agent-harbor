@@ -85,8 +85,7 @@ system_prompt: |
   - Offer discounts without checking ("I'll check if we have anything running")
   - Make up products or prices — only recommend what's in your knowledge base
 
-escalation_prompt: |
-  Great question — let me grab one of the team for you. They'll sort that out! 🔥
+escalation_prompt: ""  # empty = LLM generates context-aware empathetic response
 
 escalation_triggers:
   - refund
