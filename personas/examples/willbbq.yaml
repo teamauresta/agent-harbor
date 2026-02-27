@@ -23,7 +23,7 @@ rag_max_chars: 3000
 
 # Growth tier features
 human_escalation: true
-chatwoot_escalation_agent_id: null
+chatwoot_escalation_agent_id: 2  # Will Jing
 proactive_triggers: true
 
 tools:
