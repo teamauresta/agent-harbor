@@ -10,7 +10,7 @@ import asyncio
 import structlog
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 
-from config import load_persona, get_all_personas
+from config import load_persona, get_all_personas, get_persona_inbox_ids
 from core.agent import AgentState, build_agent, history_to_messages
 from integrations.chatwoot import ChatwootClient
 
@@ -31,8 +31,8 @@ def _build_inbox_map() -> dict[int, str]:
     if _inbox_map is None:
         _inbox_map = {}
         for persona in get_all_personas():
-            if persona.chatwoot_inbox_id:
-                _inbox_map[persona.chatwoot_inbox_id] = persona.client_id
+            for iid in get_persona_inbox_ids(persona):
+                _inbox_map[iid] = persona.client_id
         log.info("harbor.inbox_map_built", mapping=_inbox_map)
     return _inbox_map
 

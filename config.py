@@ -62,7 +62,8 @@ class PersonaConfig(BaseModel):
     tier: str = "starter"            # starter, growth, pro, agency
     language: str = "en"
     chatwoot_account_id: int = 1
-    chatwoot_inbox_id: int = 1
+    chatwoot_inbox_id: int | None = None          # primary inbox
+    chatwoot_inbox_ids: list[int] = []             # all inboxes this persona handles
     # Bot identity — Chatwoot agent bot token for this persona
     # Store in Infisical as e.g. HARBOR_BOT_TOKEN_DENTAL_DEMO
     # Messages will appear from the named bot (e.g. "Max") not the admin account
@@ -110,3 +111,11 @@ def get_all_personas() -> list[PersonaConfig]:
         except Exception:
             pass
     return personas
+
+
+def get_persona_inbox_ids(persona: PersonaConfig) -> list[int]:
+    """Get all inbox IDs this persona handles."""
+    ids = list(persona.chatwoot_inbox_ids)
+    if persona.chatwoot_inbox_id and persona.chatwoot_inbox_id not in ids:
+        ids.append(persona.chatwoot_inbox_id)
+    return ids

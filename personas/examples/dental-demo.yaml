@@ -11,6 +11,9 @@ language: en
 
 chatwoot_account_id: 1
 chatwoot_inbox_id: 1
+chatwoot_inbox_ids:
+  - 1   # dental-demo web widget
+  - 3   # @SamuelY_Bot Telegram
 bot_token_env: HARBOR_BOT_TOKEN_DENTAL_DEMO   # Chatwoot agent bot — messages appear as "Max"
 
 # Growth tier — human escalation enabled

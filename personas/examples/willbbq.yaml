@@ -11,6 +11,9 @@ language: en
 
 chatwoot_account_id: 1
 chatwoot_inbox_id: 4
+chatwoot_inbox_ids:
+  - 4   # WillBBQ web widget
+  - 5   # WillBBQ Telegram (@WillBBQ_Bot)
 bot_token_env: HARBOR_BOT_TOKEN_WILLBBQ
 
 # RAG — product knowledge retrieval
