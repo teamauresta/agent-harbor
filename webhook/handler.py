@@ -138,9 +138,11 @@ async def process_message(
         contact_name=contact_name,
         escalate=False,
         response="",
+        rag_context="",
     )
 
-    result = await asyncio.to_thread(agent.invoke, initial_state)
+    # Agent graph has async nodes (retriever), use ainvoke
+    result = await agent.ainvoke(initial_state)
     response_text = result.get("response", "")
     escalate = result.get("escalate", False)
 

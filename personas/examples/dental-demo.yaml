@@ -18,6 +18,9 @@ human_escalation: true
 chatwoot_escalation_agent_id: null   # Set to actual agent ID after Chatwoot setup
 proactive_triggers: true
 
+# RAG disabled — dental uses prompt-only knowledge for now
+rag_enabled: false
+
 tools:
   - cliniko
 

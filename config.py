@@ -29,8 +29,8 @@ class Settings(BaseSettings):
     harbor_llm_fallback_api_key: str = ""
     harbor_llm_fallback_model: str = "gpt-4o"
 
-    # Database
-    database_url: str = "sqlite:///./harbor.db"
+    # Database — pgvector-enabled Postgres for RAG knowledge base
+    database_url: str = "postgresql://sotastack:sotastack-local-2026@localhost:5432/harbor"
 
     # Redis
     redis_url: str = "redis://localhost:6379/5"
@@ -70,6 +70,10 @@ class PersonaConfig(BaseModel):
     # Growth+ only
     human_escalation: bool = False
     chatwoot_escalation_agent_id: int | None = None
+    # RAG knowledge base
+    rag_enabled: bool = False         # set True to enable retrieval
+    rag_client_id: str = ""           # override client_id for KB lookup (empty = use client_id)
+    rag_max_chars: int = 3000         # max context chars injected into prompt
     # Pro+ only
     proactive_triggers: bool = False
     multi_channel: bool = False

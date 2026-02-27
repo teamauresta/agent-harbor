@@ -2,8 +2,12 @@
 Harbor — Core LangGraph agent.
 One agent per conversation turn. Stateless between calls —
 conversation history is fetched fresh from Chatwoot each time.
+
+RAG-enhanced: retrieves relevant knowledge chunks before calling LLM.
 """
-from typing import Annotated, TypedDict
+import re
+from typing import Annotated, Optional, TypedDict
+
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
@@ -15,6 +19,22 @@ from core.escalation import should_escalate, build_escalation_message
 
 log = structlog.get_logger()
 
+# Lazy singleton — initialized on first use
+_knowledge_service = None
+
+
+async def _get_knowledge_service():
+    """Get or create the knowledge service singleton."""
+    global _knowledge_service
+    if _knowledge_service is None:
+        from services.knowledge import KnowledgeService
+
+        settings = get_settings()
+        _knowledge_service = KnowledgeService(settings.database_url)
+        await _knowledge_service.initialize()
+        log.info("harbor.knowledge_service.initialized")
+    return _knowledge_service
+
 
 class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
@@ -22,6 +42,7 @@ class AgentState(TypedDict):
     contact_name: str
     escalate: bool
     response: str
+    rag_context: str  # injected product/knowledge context
 
 
 def build_agent(persona: PersonaConfig) -> StateGraph:
@@ -59,10 +80,45 @@ def build_agent(persona: PersonaConfig) -> StateGraph:
 
         return {**state, "escalate": False}
 
+    async def retriever(state: AgentState) -> AgentState:
+        """Retrieve relevant knowledge chunks for the latest message."""
+        messages = state["messages"]
+        if not messages or not persona.rag_enabled:
+            return {**state, "rag_context": ""}
+
+        last_message = messages[-1].content if messages else ""
+        try:
+            ks = await _get_knowledge_service()
+            context = await ks.get_context(
+                persona.rag_client_id or persona.client_id,
+                last_message,
+                max_chars=persona.rag_max_chars,
+            )
+            if context:
+                log.info(
+                    "harbor.rag.context_retrieved",
+                    client_id=persona.client_id,
+                    chars=len(context),
+                )
+            return {**state, "rag_context": context}
+        except Exception as e:
+            log.error("harbor.rag.retrieval_failed", error=str(e))
+            return {**state, "rag_context": ""}
+
     def responder(state: AgentState) -> AgentState:
-        """Call LLM and generate response."""
-        import re
-        system = SystemMessage(content=persona.system_prompt)
+        """Call LLM with persona prompt + RAG context."""
+        # Build system prompt with RAG context injected
+        system_content = persona.system_prompt
+        rag_context = state.get("rag_context", "")
+        if rag_context:
+            system_content += (
+                "\n\n## Relevant Product/Knowledge Context\n"
+                "Use this information to answer the customer's question accurately. "
+                "Only reference products listed here — do not invent products or prices.\n\n"
+                f"{rag_context}"
+            )
+
+        system = SystemMessage(content=system_content)
         response = llm.invoke([system] + state["messages"])
         content = response.content
         # Strip <think>...</think> blocks (Qwen3 chain-of-thought)
@@ -70,6 +126,7 @@ def build_agent(persona: PersonaConfig) -> StateGraph:
         log.info(
             "harbor.response_generated",
             client_id=persona.client_id,
+            rag=bool(rag_context),
             tokens=response.usage_metadata.get("total_tokens", 0)
             if hasattr(response, "usage_metadata")
             else 0,
@@ -82,16 +139,18 @@ def build_agent(persona: PersonaConfig) -> StateGraph:
         return {**state, "response": msg}
 
     def route_after_router(state: AgentState) -> str:
-        return "escalator" if state.get("escalate") else "responder"
+        return "escalator" if state.get("escalate") else "retriever"
 
-    # Build graph
+    # Build graph: router → retriever → responder (or escalator)
     graph = StateGraph(AgentState)
     graph.add_node("router", router)
+    graph.add_node("retriever", retriever)
     graph.add_node("responder", responder)
     graph.add_node("escalator", escalator)
 
     graph.set_entry_point("router")
     graph.add_conditional_edges("router", route_after_router)
+    graph.add_edge("retriever", "responder")
     graph.add_edge("responder", END)
     graph.add_edge("escalator", END)
 
