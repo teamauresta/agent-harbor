@@ -87,7 +87,7 @@ def parse_products_md(text: str) -> list[dict]:
             "was_price": was_price,
             "handle": handle,
             "tags": tags,
-            "url": f"https://willbbq.com.au/products/{handle}" if handle else None,
+            "url": f"https://www.willbbq.com.au/products/{handle}" if handle else None,
         }
 
         chunks.append({
