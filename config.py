@@ -99,3 +99,14 @@ def load_persona(client_id: str) -> PersonaConfig:
     with open(config_path) as f:
         data = yaml.safe_load(f)
     return PersonaConfig(**data)
+
+
+def get_all_personas() -> list[PersonaConfig]:
+    """Load all persona configs from the personas directory."""
+    personas = []
+    for yaml_file in PERSONAS_DIR.glob("*.yaml"):
+        try:
+            personas.append(load_persona(yaml_file.stem))
+        except Exception:
+            pass
+    return personas

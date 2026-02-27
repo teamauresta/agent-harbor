@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WillBBQ - Smokey Chat Test</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        h1 { color: #E85D04; }
+        p { color: #666; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <h1>🔥 WillBBQ Test Page</h1>
+    <p>This page has the Chatwoot widget loaded for the WillBBQ inbox.</p>
+    <p>Click the chat bubble in the bottom-right to talk to Smokey.</p>
+    <p>Try asking:</p>
+    <ul>
+        <li>"What's a good grill for a family of 4 under $200?"</li>
+        <li>"Do you have portable grills for camping?"</li>
+        <li>"What's the difference between hibachi and kettle grills?"</li>
+    </ul>
+
+    <script>
+      (function(d,t) {
+        var BASE_URL="https://chatwoot.sotastack.com.au";
+        var g=d.createElement(t),s=d.getElementsByTagName(t)[0];
+        g.src=BASE_URL+"/packs/js/sdk.js";
+        g.async = true;
+        s.parentNode.insertBefore(g,s);
+        g.onload=function(){
+          window.chatwootSDK.run({
+            websiteToken: 'HaGRqnLZkxhZVdWweDgnMfZ5',
+            baseUrl: BASE_URL
+          })
+        }
+      })(document,"script");
+    </script>
+</body>
+</html>

@@ -2,17 +2,58 @@
 Harbor — Chatwoot webhook handler.
 Receives all Chatwoot events, filters to visitor messages only,
 routes to the right LangGraph agent per client_id.
+
+Routing: supports both URL-based (/webhook/{client_id}) and
+inbox-based routing (inbox_id → client_id mapping from persona configs).
 """
 import asyncio
 import structlog
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 
-from config import load_persona
+from config import load_persona, get_all_personas
 from core.agent import AgentState, build_agent, history_to_messages
 from integrations.chatwoot import ChatwootClient
 
 log = structlog.get_logger()
 router = APIRouter()
+
+
+# ---------------------------------------------------------------------------
+# Inbox → Persona routing
+# ---------------------------------------------------------------------------
+
+_inbox_map: dict[int, str] | None = None
+
+
+def _build_inbox_map() -> dict[int, str]:
+    """Build inbox_id → client_id mapping from all persona configs."""
+    global _inbox_map
+    if _inbox_map is None:
+        _inbox_map = {}
+        for persona in get_all_personas():
+            if persona.chatwoot_inbox_id:
+                _inbox_map[persona.chatwoot_inbox_id] = persona.client_id
+        log.info("harbor.inbox_map_built", mapping=_inbox_map)
+    return _inbox_map
+
+
+def resolve_client_id(client_id: str, payload: dict) -> str:
+    """
+    Resolve the actual client_id for this webhook event.
+    Priority: inbox_id mapping > URL client_id fallback.
+    """
+    # inbox can be at top level, nested in inbox{}, or in conversation{}
+    inbox_id = (
+        payload.get("inbox", {}).get("id")
+        or payload.get("inbox_id")
+        or payload.get("conversation", {}).get("inbox_id")
+    )
+    if inbox_id:
+        inbox_map = _build_inbox_map()
+        mapped = inbox_map.get(inbox_id)
+        if mapped:
+            return mapped
+    return client_id
 
 
 # ---------------------------------------------------------------------------
@@ -30,12 +71,17 @@ async def chatwoot_webhook(
     We filter to incoming visitor messages only, then process async.
     """
     payload = await request.json()
-
     event_type = payload.get("event")
-    log.debug("harbor.webhook_received", client_id=client_id, evt=event_type,
+
+    # Resolve actual client_id from inbox mapping
+    resolved_id = resolve_client_id(client_id, payload)
+
+    log.debug("harbor.webhook_received", client_id=resolved_id, evt=event_type,
+              url_client_id=client_id,
+              inbox_id=payload.get("inbox", {}).get("id"),
               msg_type=payload.get("message_type") if event_type == "message_created" else None)
 
-    # Handle new conversations — send Harbor's proactive greeting
+    # Handle new conversations — send proactive greeting
     if event_type == "conversation_created":
         conversation = payload.get("conversation", {})
         conversation_id = conversation.get("id")
@@ -43,7 +89,7 @@ async def chatwoot_webhook(
         if conversation_id and account_id:
             background_tasks.add_task(
                 send_greeting,
-                client_id=client_id,
+                client_id=resolved_id,
                 account_id=account_id,
                 conversation_id=conversation_id,
             )
@@ -54,7 +100,6 @@ async def chatwoot_webhook(
         return {"status": "ignored", "reason": "not a message event"}
 
     # Chatwoot sends message_created with fields at the TOP level of the payload
-    # message_type can be int (0=incoming) or string ("incoming") depending on version
     msg_type = payload.get("message_type")
     is_incoming = msg_type == 0 or msg_type == "incoming"
     if not is_incoming:
@@ -77,14 +122,14 @@ async def chatwoot_webhook(
     # Process in background — return 200 immediately to Chatwoot
     background_tasks.add_task(
         process_message,
-        client_id=client_id,
+        client_id=resolved_id,
         account_id=account_id,
         conversation_id=conversation_id,
         content=content,
         contact=contact,
     )
 
-    return {"status": "queued"}
+    return {"status": "queued", "client_id": resolved_id}
 
 
 # ---------------------------------------------------------------------------
@@ -92,7 +137,7 @@ async def chatwoot_webhook(
 # ---------------------------------------------------------------------------
 
 async def send_greeting(client_id: str, account_id: int, conversation_id: int):
-    """Send Max's persona greeting when a visitor starts a new conversation."""
+    """Send persona greeting when a visitor starts a new conversation."""
     try:
         persona = load_persona(client_id)
     except ValueError:
@@ -114,8 +159,7 @@ async def process_message(
     contact: dict,
 ):
     """
-    Load persona → fetch history → run agent → send response back.
-    Handles escalation by assigning to a human agent in Chatwoot.
+    Load persona → fetch history → run RAG retriever → run agent → send response back.
     """
     try:
         persona = load_persona(client_id)

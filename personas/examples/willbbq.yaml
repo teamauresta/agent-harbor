@@ -10,7 +10,7 @@ tier: growth
 language: en
 
 chatwoot_account_id: 1
-chatwoot_inbox_id: null  # set after creating Chatwoot inbox
+chatwoot_inbox_id: 4
 bot_token_env: HARBOR_BOT_TOKEN_WILLBBQ
 
 # RAG — product knowledge retrieval

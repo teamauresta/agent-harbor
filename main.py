@@ -39,6 +39,10 @@ app.add_middleware(
 app.include_router(webhook_router)
 
 
+from fastapi.staticfiles import StaticFiles
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "harbor"}

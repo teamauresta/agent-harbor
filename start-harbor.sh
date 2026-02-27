@@ -41,6 +41,7 @@ export HARBOR_LLM_MODEL=$(get_secret "HARBOR_LLM_MODEL")
 
 # Bot tokens — one per persona (messages appear as the named bot, not admin)
 export HARBOR_BOT_TOKEN_DENTAL_DEMO=$(get_secret "HARBOR_BOT_TOKEN_DENTAL_DEMO")
+export HARBOR_BOT_TOKEN_WILLBBQ=$(get_secret "HARBOR_BOT_TOKEN_WILLBBQ")
 
 # Clear token from env — don't leave it hanging around
 unset _TOKEN
